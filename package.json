@@ -1,14 +1,7 @@
 {
   "name": "@alumis/observables-dom",
-  "version": "1.0.0",
+  "version": "1.0.48",
   "description": "DOM support for @alumis/observables.",
-  "module": "./dist/esm/index.js",
-  "typings": "./dist/esm/index.d.ts",
-  "scripts": {
-    "clean": "node ./node_modules/rimraf/bin.js ./dist",
-    "build": "npm run clean && npm run build:esm",
-    "build:esm": "node ./node_modules/typescript/bin/tsc --project ./tsconfig.json --module es2015 --outDir ./dist/esm -d"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/alumis/observables-dom.git"
@@ -18,17 +11,18 @@
   "bugs": {
     "url": "https://github.com/alumis/observables-dom/issues"
   },
-  "files": [
-    "dist/**/*",
-    "src/**/*"
-  ],
-  "unpkg": "dist/browser/observables-dom.js",
   "devDependencies": {
-    "rimraf": "^2.6.3",
-    "typescript": "^3.3.4000",
-    "@alumis/observables": "^1.0.4"
+    "@alumis/cancellationtoken": "^1.0.4",
+    "@alumis/observables": "^1.0.40",
+    "@alumis/semaphore": "^1.0.1",
+    "@alumis/transitionasync": "^1.0.2",
+    "typescript": "^3.4.4"
   },
   "peerDependencies": {
-    "@alumis/observables": "^1.0.4"
-  }
+    "@alumis/cancellationtoken": "^1.0.4",
+    "@alumis/observables": "^1.0.27",
+    "@alumis/transitionasync": "^1.0.2",
+    "@alumis/semaphore": "^1.0.0"
+  },
+  "sideEffects": true
 }

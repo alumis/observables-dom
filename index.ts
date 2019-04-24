@@ -61,18 +61,18 @@ function createNodeFromFunction(fn, attrs: { [attr: string]: any }, children: an
 
         if (attrs) {
 
-            for (var a in attrs) {
+            // for (var a in attrs) {
 
-                let attr = attrs[a];
+            //     let attr = attrs[a];
 
-                if (a.startsWith("on") && 2 < a.length) {
+            //     if (a.startsWith("on") && 2 < a.length) {
 
-                    node[a] = attr;
-                    continue;
-                }
+            //         node[a] = attr;
+            //         continue;
+            //     }
 
-                bindAttribute(<HTMLElement>node, a, attr);
-            }
+            //     bindAttribute(<HTMLElement>node, a, attr);
+            // }
 
             if (cls)
                 bindAttribute(<HTMLElement>node, "class", cls);
@@ -95,18 +95,18 @@ function createNodeFromFunction(fn, attrs: { [attr: string]: any }, children: an
 
             if (attrs) {
 
-                for (var a in attrs) {
+                // for (var a in attrs) {
 
-                    let attr = attrs[a];
+                //     let attr = attrs[a];
 
-                    if (a.startsWith("on") && 2 < a.length) {
+                //     if (a.startsWith("on") && 2 < a.length) {
 
-                        result[a] = attr;
-                        continue;
-                    }
+                //         result[a] = attr;
+                //         continue;
+                //     }
 
-                    bindAttribute(<HTMLElement>result, a, attr);
-                }
+                //     bindAttribute(<HTMLElement>result, a, attr);
+                // }
 
                 if (cls)
                     bindAttribute(<HTMLElement>result, "class", cls);
@@ -544,7 +544,7 @@ var htmlElementIds = 0;
 
 export function generateHTMLElementId() {
 
-    return "__" + htmlElementIds++;
+    return "_" + htmlElementIds++;
 }
 
 export interface Attributes {

@@ -1,6 +1,6 @@
 {
   "name": "@alumis/observables-dom",
-  "version": "1.0.48",
+  "version": "1.0.49",
   "description": "DOM support for @alumis/observables.",
   "repository": {
     "type": "git",

@@ -346,23 +346,20 @@ export const Fragment = () => "__fragment";
 
 export function disposeNode(node: Node) {
 
-    for (; ;) {
+    if (node.childNodes.length) { // It is important to dispose of the child nodes first
 
-        if (node.childNodes.length) { // It is important to dispose of the child nodes first
+        for (let n of node.childNodes)
+            disposeNode(n);
+    }
 
-            for (let n of node.childNodes)
-                disposeNode(n);
-        }
+    let dispose: (() => any)[] = node["__dispose"];
 
-        let dispose: (() => any)[] = node["__dispose"];
+    if (dispose) {
 
-        if (dispose) {
+        delete node["__dispose"];
 
-            delete node["__dispose"];
-
-            for (let fn of dispose)
-                fn();
-        }
+        for (let fn of dispose)
+            fn();
     }
 }
 

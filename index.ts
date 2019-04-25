@@ -1,4 +1,4 @@
-import { Observable, ComputedObservable, ObservableArray, SortedObservableSet, AddedOrRemovedItems } from "@alumis/observables";
+import { Observable, ComputedObservable, ObservableArray, AddedOrRemovedItems, DerivedObservableCollection } from "@alumis/observables";
 import { transitionAsync, DOMAnimator, elementIsVisible, easeIn, easeOut } from "@alumis/transitionasync";
 
 export function createNode(element: string | (() => any), attrs: { [attr: string]: any }, ...children) {
@@ -161,7 +161,7 @@ function createFragment(children: any[], parentElement: HTMLElement) {
         }
 
         else if (child instanceof ObservableArray)
-            appendDispose(result, createFragmentForObservableArrayChild(result, child, parentElement).dispose);
+            appendDispose(result, createFragmentForObservableArrayChild(result, child, parentElement));
 
         else if (child instanceof Array)
             child.forEach(processChild);
@@ -291,7 +291,7 @@ function createFragmentForObservableArrayChild(fragment: DocumentFragment, child
     for (let c of child.wrappedArray)
         elements.push(fragment.appendChild(c));
 
-    return child.subscribe((addedOrRemovedItems: AddedOrRemovedItems<any>[]) => {
+    let subscription = child.subscribe((addedOrRemovedItems: AddedOrRemovedItems<any>[]) => {
 
         for (var i of addedOrRemovedItems) {
 
@@ -330,6 +330,11 @@ function createFragmentForObservableArrayChild(fragment: DocumentFragment, child
             }
         }
     });
+
+    if ((<DerivedObservableCollection<any, any>><unknown>child).disposeSourceCollection)
+        return child.dispose;
+    
+    else return subscription.dispose;
 }
 
 export abstract class Component<TNode extends Node> {
@@ -343,6 +348,12 @@ export function disposeNode(node: Node) {
 
     for (; ;) {
 
+        if (node.childNodes.length) { // It is important to dispose of the child nodes first
+
+            for (let n of node.childNodes)
+                disposeNode(n);
+        }
+
         let dispose: (() => any)[] = node["__dispose"];
 
         if (dispose) {
@@ -352,23 +363,6 @@ export function disposeNode(node: Node) {
             for (let fn of dispose)
                 fn();
         }
-
-        if (node.childNodes.length) {
-
-            node = node.lastChild;
-
-            for (var n of node.childNodes) {
-
-                if (n !== node)
-                    disposeNode(n);
-
-                else break;
-            }
-
-            continue;
-        }
-
-        else return;
     }
 }
 

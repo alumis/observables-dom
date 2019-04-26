@@ -1,5 +1,6 @@
 import { Observable, ComputedObservable, ObservableArray, AddedOrRemovedItems, DerivedObservableCollection } from "@alumis/observables";
 import { transitionAsync, DOMAnimator, elementIsVisible, easeIn, easeOut } from "@alumis/transitionasync";
+import { CancellationToken } from "@alumis/cancellationtoken";
 
 export function createNode(element: string | (() => any), attrs: { [attr: string]: any }, ...children) {
 
@@ -40,81 +41,15 @@ function createHTMLElementFromTagName(tagName: string, attrs: { [attr: string]: 
 
 function createNodeFromFunction(fn, attrs: { [attr: string]: any }, children: any[]) {
 
-    let result: Node;
-
-    let cls;
-    let style;
-
-    if (attrs) {
-
-        cls = attrs.class;
-        style = attrs.style;
-
-        delete attrs.class;
-        delete attrs.style;
-    }
-
-    if (fn.prototype instanceof Component) {
-
-        let component = <Component<Node>>new fn(attrs, children);
-        let node = component.node;
-
-        if (attrs) {
-
-            // for (var a in attrs) {
-
-            //     let attr = attrs[a];
-
-            //     if (a.startsWith("on") && 2 < a.length) {
-
-            //         node[a] = attr;
-            //         continue;
-            //     }
-
-            //     bindAttribute(<HTMLElement>node, a, attr);
-            // }
-
-            if (cls)
-                bindAttribute(<HTMLElement>node, "class", cls);
-
-            if (style)
-                bindAttribute(<HTMLElement>node, "style", style);
-        }
-
-        return component;
-    }
+    if (fn.prototype instanceof Component)
+        return <Component<Node>>new fn(attrs, children);
 
     else {
 
-        result = fn(attrs);
+        let result = fn(attrs);
 
         if (<any>result === "__fragment")
             return createFragment(children, null);
-
-        else {
-
-            if (attrs) {
-
-                // for (var a in attrs) {
-
-                //     let attr = attrs[a];
-
-                //     if (a.startsWith("on") && 2 < a.length) {
-
-                //         result[a] = attr;
-                //         continue;
-                //     }
-
-                //     bindAttribute(<HTMLElement>result, a, attr);
-                // }
-
-                if (cls)
-                    bindAttribute(<HTMLElement>result, "class", cls);
-
-                if (style)
-                    bindAttribute(<HTMLElement>result, "style", style);
-            }
-        }
 
         return result;
     }
@@ -176,7 +111,7 @@ function createFragment(children: any[], parentElement: HTMLElement) {
 
 class VerticalListEaseOutDOMAnimator implements DOMAnimator {
 
-    async insertBeforeAsync(parentElement: HTMLElement, newChild: HTMLElement, referenceNode: Node) {
+    async insertBeforeAsync(parentElement: HTMLElement, newChild: HTMLElement, referenceNode: Node, cancellationToken: CancellationToken) {
 
         newChild.style.opacity = "0";
         newChild.style.position = "absolute";
@@ -209,10 +144,10 @@ class VerticalListEaseOutDOMAnimator implements DOMAnimator {
                         newChild.style.height = (height + remaining * easeIn(t)) + "px";
 
                         scrollBy(0, document.body.scrollHeight - window.innerHeight - window.scrollY - scrollBottom);
-                    });
+                    }, cancellationToken);
                 }
 
-                else await transitionAsync(150, t => { newChild.style.height = (height + remaining * easeIn(t)) + "px"; });
+                else await transitionAsync(150, t => { newChild.style.height = (height + remaining * easeIn(t)) + "px"; }, cancellationToken);
             }
 
             newChild.style.height = "";
@@ -222,7 +157,7 @@ class VerticalListEaseOutDOMAnimator implements DOMAnimator {
             remaining = 1 - opacity;
 
             if (remaining)
-                await transitionAsync(200, t => { newChild.style.opacity = String(opacity + remaining * easeOut(t)); });
+                await transitionAsync(200, t => { newChild.style.opacity = String(opacity + remaining * easeOut(t)); }, cancellationToken);
 
             newChild.style.opacity = "";
         }
@@ -235,19 +170,19 @@ class VerticalListEaseOutDOMAnimator implements DOMAnimator {
         }
     }
 
-    async removeAsync(element: HTMLElement) {
+    async removeAsync(element: HTMLElement, cancellationToken: CancellationToken) {
 
         if (elementIsVisible(element)) {
 
             let opacity = parseFloat(getComputedStyle(element).opacity);
 
             if (opacity)
-                await transitionAsync(200, t => { element.style.opacity = String(opacity - opacity * easeIn(t)); });
+                await transitionAsync(200, t => { element.style.opacity = String(opacity - opacity * easeIn(t)); }, cancellationToken);
 
             let height = element.clientHeight;
 
             if (height)
-                await transitionAsync(150, t => { element.style.height = height - height * easeOut(t) + "px"; });
+                await transitionAsync(150, t => { element.style.height = height - height * easeOut(t) + "px"; }, cancellationToken);
 
             element.remove();
 
@@ -288,44 +223,41 @@ function createFragmentForObservableArrayChild(fragment: DocumentFragment, child
 
     let elements: HTMLElement[] = [];
 
-    for (let c of child.wrappedArray)
+    for (let c of child.wrappedCollection)
         elements.push(fragment.appendChild(c));
 
-    let subscription = child.subscribe((addedOrRemovedItems: AddedOrRemovedItems<any>[]) => {
+    let subscription = child.subscribe((addedItems, removedItems, index, move) => {
 
-        for (var i of addedOrRemovedItems) {
+        if (addedItems) {
 
-            if (i.addedItems) {
+            let referenceNode = index < elements.length ? elements[index] : null; // MDN: referenceNode is not an optional parameter -- you must explicitly pass a Node or null. Failing to provide it or passing invalid values may behave differently in different browser versions.
 
-                let referenceNode = i.index < elements.length ? elements[i.index] : null; // MDN: referenceNode is not an optional parameter -- you must explicitly pass a Node or null. Failing to provide it or passing invalid values may behave differently in different browser versions.
+            for (let j = addedItems.length; 0 < j;) {
 
-                for (let j = i.addedItems.length; 0 < j;) {
+                let element = addedItems[--j];
 
-                    let element = i.addedItems[--j];
+                if (move)
+                    parentElement.insertBefore(element, referenceNode);
 
-                    if (i.move)
-                        parentElement.insertBefore(element, referenceNode);
+                else verticalListEaseOutDOMAnimator.insertBeforeAsync(parentElement, element, referenceNode, null);
 
-                    else verticalListEaseOutDOMAnimator.insertBeforeAsync(parentElement, element, referenceNode);
-
-                    referenceNode = element;
-                }
-
-                elements.splice(i.index, 0, ...i.addedItems);
+                referenceNode = element;
             }
 
-            else if (i.removedItems) {
+            elements.splice(index, 0, ...addedItems);
+        }
 
-                for (let e of elements.splice(i.index, i.removedItems.length)) {
+        else { // Removed items
 
-                    if (i.move)
-                        parentElement.removeChild(e);
+            for (let e of elements.splice(index, removedItems.length)) {
 
-                    else {
+                if (move)
+                    parentElement.removeChild(e);
 
-                        verticalListEaseOutDOMAnimator.removeAsync(e);
-                        disposeNode(e);
-                    }
+                else {
+
+                    verticalListEaseOutDOMAnimator.removeAsync(e, null);
+                    disposeNode(e);
                 }
             }
         }
@@ -333,7 +265,7 @@ function createFragmentForObservableArrayChild(fragment: DocumentFragment, child
 
     if ((<DerivedObservableCollection<any, any>><unknown>child).disposeSourceCollection)
         return child.dispose;
-    
+
     else return subscription.dispose;
 }
 

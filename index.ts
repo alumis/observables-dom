@@ -2,6 +2,8 @@ import { Observable, ComputedObservable, ObservableArray, AddedOrRemovedItems, D
 import { transitionAsync, DOMAnimator, elementIsVisible, easeIn, easeOut } from "@alumis/transitionasync";
 import { CancellationToken } from "@alumis/cancellationtoken";
 
+export var globalAttrHandlers = new Map<string, (node: Node) => any>();
+
 export function createNode(element: string | (() => any), attrs: { [attr: string]: any }, ...children) {
 
     if (typeof element === "string")
@@ -18,7 +20,7 @@ function createHTMLElementFromTagName(tagName: string, attrs: { [attr: string]: 
     const result = document.createElement(tagName);
 
     if (children.length)
-        result.appendChild(createFragment(children, result));
+        appendChildren(result, children, result);
 
     if (attrs) {
 
@@ -32,7 +34,15 @@ function createHTMLElementFromTagName(tagName: string, attrs: { [attr: string]: 
                 continue;
             }
 
-            bindAttribute(result, a, attr);
+            else {
+
+                let globalAttrHandler = globalAttrHandlers.get(a);
+
+                if (globalAttrHandler)
+                    globalAttrHandler(result);
+
+                else bindAttribute(result, a, attr);
+            }
         }
     }
 
@@ -49,15 +59,13 @@ function createNodeFromFunction(fn, attrs: { [attr: string]: any }, children: an
         let result = fn(attrs);
 
         if (<any>result === "__fragment")
-            return createFragment(children, null);
+            appendChildren(result = document.createDocumentFragment(), children, null);
 
         return result;
     }
 }
 
-function createFragment(children: any[], parentElement: HTMLElement) {
-
-    const result = document.createDocumentFragment();
+function appendChildren(node: Node, children: any[], parentElement: HTMLElement) {
 
     function processChild(child) {
 
@@ -66,14 +74,13 @@ function createFragment(children: any[], parentElement: HTMLElement) {
             child instanceof Comment ||
             child instanceof DocumentFragment)
 
-            result.appendChild(child);
+            node.appendChild(child);
 
         else if (child instanceof Component)
-            result.appendChild(child.node);
-
+            node.appendChild(child.node);
 
         else if (typeof child === "string" || typeof child === "number")
-            result.appendChild(document.createTextNode(<any>child));
+            node.appendChild(document.createTextNode(<any>child));
 
         else if (child instanceof Observable) {
 
@@ -82,7 +89,7 @@ function createFragment(children: any[], parentElement: HTMLElement) {
 
             appendDispose(textNode, child.subscribe(n => { textNode.textContent = n !== null && n !== undefined ? String(n) : ""; }).dispose);
 
-            result.appendChild(textNode);
+            node.appendChild(textNode);
         }
 
         else if (typeof child === "function") {
@@ -92,26 +99,24 @@ function createFragment(children: any[], parentElement: HTMLElement) {
             let textNode = document.createTextNode(value !== null && value !== undefined ? String(value) : "");
 
             appendDispose(textNode, computedObservable.subscribe(n => { textNode.textContent = n !== null && n !== undefined ? String(n) : ""; }).dispose);
-            result.appendChild(textNode);
+            node.appendChild(textNode);
         }
 
         else if (child instanceof ObservableArray)
-            appendDispose(result, createFragmentForObservableArrayChild(result, child, parentElement));
+            appendDispose(node, createFragmentForObservableArrayChild(node, child, parentElement));
 
         else if (child instanceof Array)
             child.forEach(processChild);
 
-        else result.appendChild(document.createTextNode(child !== null && child !== undefined ? String(child) : ""));
+        else node.appendChild(document.createTextNode(child !== null && child !== undefined ? String(child) : ""));
     }
 
     children.forEach(processChild);
-
-    return result;
 }
 
 class VerticalListEaseOutDOMAnimator implements DOMAnimator {
 
-    async insertBeforeAsync(parentElement: HTMLElement, newChild: HTMLElement, referenceNode: Node, cancellationToken: CancellationToken) {
+    async insertBeforeAsync(parentElement: HTMLElement, newChild: HTMLElement, referenceNode: Node, cancellationToken?: CancellationToken) {
 
         newChild.style.opacity = "0";
         newChild.style.position = "absolute";
@@ -170,7 +175,7 @@ class VerticalListEaseOutDOMAnimator implements DOMAnimator {
         }
     }
 
-    async removeAsync(element: HTMLElement, cancellationToken: CancellationToken) {
+    async removeAsync(element: HTMLElement, cancellationToken?: CancellationToken) {
 
         if (elementIsVisible(element)) {
 
@@ -219,12 +224,12 @@ function getScrollParent(element: HTMLElement, includeHidden?: boolean) {
 
 export var verticalListEaseOutDOMAnimator = new VerticalListEaseOutDOMAnimator();
 
-function createFragmentForObservableArrayChild(fragment: DocumentFragment, child: ObservableArray<any>, parentElement: HTMLElement) {
+function createFragmentForObservableArrayChild(node: Node, child: ObservableArray<any>, parentElement: HTMLElement) {
 
     let elements: HTMLElement[] = [];
 
     for (let c of child.wrappedCollection)
-        elements.push(fragment.appendChild(c));
+        elements.push(node.appendChild(c));
 
     let subscription = child.subscribe((addedItems, removedItems, index, move) => {
 
@@ -239,7 +244,7 @@ function createFragmentForObservableArrayChild(fragment: DocumentFragment, child
                 if (move)
                     parentElement.insertBefore(element, referenceNode);
 
-                else verticalListEaseOutDOMAnimator.insertBeforeAsync(parentElement, element, referenceNode, null);
+                else verticalListEaseOutDOMAnimator.insertBeforeAsync(parentElement, element, referenceNode);
 
                 referenceNode = element;
             }
@@ -256,7 +261,7 @@ function createFragmentForObservableArrayChild(fragment: DocumentFragment, child
 
                 else {
 
-                    verticalListEaseOutDOMAnimator.removeAsync(e, null);
+                    verticalListEaseOutDOMAnimator.removeAsync(e);
                     disposeNode(e);
                 }
             }

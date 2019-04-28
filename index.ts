@@ -76,8 +76,13 @@ function appendChildren(node: Node, children: any[], parentElement: HTMLElement)
 
             node.appendChild(child);
 
-        else if (child instanceof Component)
+        else if (child instanceof Component) {
+
             node.appendChild(child.node);
+
+            if ((child as any as IOnInit).onInit) 
+                (child as any as IOnInit).onInit();                
+        }
 
         else if (typeof child === "string" || typeof child === "number")
             node.appendChild(document.createTextNode(<any>child));
@@ -739,4 +744,10 @@ export interface Attributes {
      */
     onwaiting?: (ev: Event) => any;
     onwheel?: (ev: WheelEvent) => any;
+}
+
+// component life cycles
+export interface IOnInit {
+
+    onInit(): void;
 }

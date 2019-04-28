@@ -2,7 +2,7 @@ import { Observable, ComputedObservable, ObservableArray, AddedOrRemovedItems, D
 import { transitionAsync, DOMAnimator, elementIsVisible, easeIn, easeOut } from "@alumis/transitionasync";
 import { CancellationToken } from "@alumis/cancellationtoken";
 
-export var globalAttrHandlers = new Map<string, (node: Node) => any>();
+export var globalAttrHandlers = new Map<string, (node: Node, attr, attrs: { [attr: string]: any }) => any>();
 
 export function createNode(element: string | (() => any), attrs: { [attr: string]: any }, ...children) {
 
@@ -39,7 +39,7 @@ function createHTMLElementFromTagName(tagName: string, attrs: { [attr: string]: 
                 let globalAttrHandler = globalAttrHandlers.get(a);
 
                 if (globalAttrHandler)
-                    globalAttrHandler(result);
+                    globalAttrHandler(result, attr, attrs);
 
                 else bindAttribute(result, a, attr);
             }

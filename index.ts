@@ -295,7 +295,7 @@ export function disposeNode(node: Node) {
 
         delete node["__dispose"];
 
-        for (let fn of dispose)
+        for (let fn of dispose.reverse())
             fn();
     }
 }

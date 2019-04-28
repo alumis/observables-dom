@@ -1,6 +1,6 @@
 {
   "name": "@alumis/observables-dom",
-  "version": "1.0.55",
+  "version": "1.0.56",
   "description": "DOM support for @alumis/observables.",
   "repository": {
     "type": "git",
@@ -13,9 +13,9 @@
   },
   "devDependencies": {
     "@alumis/cancellationtoken": "^1.0.4",
-    "@alumis/observables": "^1.0.46",
+    "@alumis/observables": "^1.0.47",
     "@alumis/semaphore": "^1.0.1",
-    "@alumis/transitionasync": "^1.0.2"
+    "@alumis/transitionasync": "^1.0.3"
   },
   "peerDependencies": {
     "@alumis/observables": "^1.0.44",

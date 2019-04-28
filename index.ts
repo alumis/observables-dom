@@ -1,4 +1,4 @@
-import { Observable, ComputedObservable, ObservableArray, AddedOrRemovedItems, DerivedObservableCollection } from "@alumis/observables";
+import { Observable, ComputedObservable, ObservableArray, DerivedObservableCollection } from "@alumis/observables";
 import { transitionAsync, DOMAnimator, elementIsVisible, easeIn, easeOut } from "@alumis/transitionasync";
 import { CancellationToken } from "@alumis/cancellationtoken";
 

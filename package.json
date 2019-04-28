@@ -15,13 +15,15 @@
     "@alumis/cancellationtoken": "^1.0.4",
     "@alumis/observables": "^1.0.47",
     "@alumis/semaphore": "^1.0.1",
-    "@alumis/transitionasync": "^1.0.3"
+    "@alumis/transitionasync": "^1.0.3",
+    "@alumis/utils": "1.0.2"
   },
   "peerDependencies": {
     "@alumis/observables": "^1.0.44",
     "@alumis/semaphore": "^1.0.1",
     "@alumis/cancellationtoken": "^1.0.4",
-    "@alumis/transitionasync": "^1.0.2"
+    "@alumis/transitionasync": "^1.0.2",
+    "@alumis/utils": "1.0.2"
   },
   "sideEffects": true
 }

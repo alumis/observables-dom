@@ -1,6 +1,7 @@
 import { Observable, ComputedObservable, ObservableArray, DerivedObservableCollection } from "@alumis/observables";
 import { transitionAsync, DOMAnimator, elementIsVisible, easeIn, easeOut } from "@alumis/transitionasync";
 import { CancellationToken } from "@alumis/cancellationtoken";
+import { observe } from '@alumis/utils';
 
 export var globalAttrHandlers = new Map<string, (node: Node, attr, attrs: { [attr: string]: any }) => any>();
 
@@ -80,8 +81,10 @@ function appendChildren(node: Node, children: any[], parentElement: HTMLElement)
 
             node.appendChild(child.node);
 
-            if ((child as any as IOnInit).onInit) 
-                (child as any as IOnInit).onInit();                
+            observe(child.node);
+
+            if ((child as any as IOnLoad).onLoad) 
+                (child as any as IOnLoad).onLoad();              
         }
 
         else if (typeof child === "string" || typeof child === "number")
@@ -746,8 +749,7 @@ export interface Attributes {
     onwheel?: (ev: WheelEvent) => any;
 }
 
-// component life cycles
-export interface IOnInit {
+export interface IOnLoad {
 
-    onInit(): void;
+    onLoad(): void;
 }

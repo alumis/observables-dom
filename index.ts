@@ -483,7 +483,7 @@ export function generateHTMLElementId() {
     return "_" + htmlElementIds++;
 }
 
-export interface Attributes {
+export interface IAttributes {
 
     onabort?: (ev: UIEvent) => any;
     onanimationcancel?: (ev: AnimationEvent) => any;

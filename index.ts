@@ -1,7 +1,6 @@
 import { Observable, ComputedObservable, ObservableArray, DerivedObservableCollection } from "@alumis/observables";
 import { transitionAsync, DOMAnimator, elementIsVisible, easeIn, easeOut } from "@alumis/transitionasync";
 import { CancellationToken } from "@alumis/cancellationtoken";
-import { observe } from '@alumis/utils';
 
 export var globalAttrHandlers = new Map<string, (node: Node, attr, attrs: { [attr: string]: any }) => any>();
 
@@ -77,15 +76,8 @@ function appendChildren(node: Node, children: any[], parentElement: HTMLElement)
 
             node.appendChild(child);
 
-        else if (child instanceof Component) {
-
-            node.appendChild(child.node);
-
-            observe(child.node);
-
-            if ((child as any as IOnLoad).onLoad) 
-                (child as any as IOnLoad).onLoad();              
-        }
+        else if (child instanceof Component)
+            node.appendChild(child.node);      
 
         else if (typeof child === "string" || typeof child === "number")
             node.appendChild(document.createTextNode(<any>child));
@@ -747,9 +739,4 @@ export interface IAttributes {
      */
     onwaiting?: (ev: Event) => any;
     onwheel?: (ev: WheelEvent) => any;
-}
-
-export interface IOnLoad {
-
-    onLoad(): void;
 }

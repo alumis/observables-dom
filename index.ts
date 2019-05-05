@@ -4,6 +4,64 @@ import { CancellationToken } from "@alumis/cancellationtoken";
 
 export var globalAttrHandlers = new Map<string, (node: Node, attr, attrs: { [attr: string]: any }) => any>();
 
+globalAttrHandlers.set("class", (element: HTMLElement, expression) => {
+
+    if (typeof expression === "string")
+        element.classList.add(...expression.split(" ").filter(s => s));
+
+    else if (expression) {
+
+        if (expression instanceof Observable) {
+
+            let value = (<Observable<string>>expression).value;
+
+            if (value)
+                element.classList.add(...value.split(" ").filter(s => s));
+
+            appendDispose(element, expression.subscribe((n, o) => {
+
+                let oldClasses = new Set((<string>o).split(" "));
+                let newClasses = new Set((<string>n).split(" "));
+
+                for (var cls of oldClasses) {
+
+                    if (!newClasses.has(cls))
+                        element.classList.remove(cls);
+                }
+
+                element.classList.add(...newClasses);
+
+            }).dispose);
+        }
+
+        else if (typeof expression === "function") {
+
+            let computedObservable = ComputedObservable.createComputed<string>(expression);
+
+            element.classList.add(...computedObservable.value.split(" ").filter(s => s));
+
+            computedObservable.subscribeInvoke((n, o) => {
+
+                let oldClasses = new Set((<string>o).split(" "));
+                let newClasses = new Set((<string>n).split(" "));
+
+                for (var cls of oldClasses) {
+
+                    if (!newClasses.has(cls))
+                        element.classList.remove(cls);
+                }
+
+                element.classList.add(...newClasses);
+            });
+
+            appendDispose(element, computedObservable.dispose);
+        }
+    }
+});
+
+globalAttrHandlers.set("style", (element: HTMLElement, attr) => { Object.assign(element.style, attr); });
+globalAttrHandlers.set("pressed", (element: HTMLElement, attr) => { bindAttribute(element, "aria-pressed", attr) });
+
 export function createNode(element: string | (() => any), attrs: { [attr: string]: any }, ...children) {
 
     if (typeof element === "string")
@@ -22,31 +80,34 @@ function createHTMLElementFromTagName(tagName: string, attrs: { [attr: string]: 
     if (children.length)
         appendChildren(result, children, result);
 
-    if (attrs) {
-
-        for (var a in attrs) {
-
-            let attr = attrs[a];
-
-            if (a.startsWith("on") && 2 < a.length) {
-
-                result[a] = attr;
-                continue;
-            }
-
-            else {
-
-                let globalAttrHandler = globalAttrHandlers.get(a);
-
-                if (globalAttrHandler)
-                    globalAttrHandler(result, attr, attrs);
-
-                else bindAttribute(result, a, attr);
-            }
-        }
-    }
+    if (attrs)
+        applyAttributes(result, attrs);
 
     return result;
+}
+
+export function applyAttributes(node: Element, attrs: { [attr: string]: any }) {
+
+    for (var a in attrs) {
+
+        let attr = attrs[a];
+
+        if (a.startsWith("on") && 2 < a.length) {
+
+            node[a] = attr;
+            continue;
+        }
+
+        else {
+
+            let globalAttrHandler = globalAttrHandlers.get(a);
+
+            if (globalAttrHandler)
+                globalAttrHandler(node, attr, attrs);
+
+            else bindAttribute(node, a, attr);
+        }
+    }
 }
 
 function createNodeFromFunction(fn, attrs: { [attr: string]: any }, children: any[]) {
@@ -65,7 +126,7 @@ function createNodeFromFunction(fn, attrs: { [attr: string]: any }, children: an
     }
 }
 
-function appendChildren(node: Node, children: any[], parentElement: HTMLElement) {
+function appendChildren(parentNode: Node, children: any[], parentElement: HTMLElement) {
 
     function processChild(child) {
 
@@ -74,44 +135,79 @@ function appendChildren(node: Node, children: any[], parentElement: HTMLElement)
             child instanceof Comment ||
             child instanceof DocumentFragment)
 
-            node.appendChild(child);
+            parentNode.appendChild(child);
 
         else if (child instanceof Component)
-            node.appendChild(child.node);      
+            parentNode.appendChild(child.node);
 
         else if (typeof child === "string" || typeof child === "number")
-            node.appendChild(document.createTextNode(<any>child));
+            parentNode.appendChild(document.createTextNode(<any>child));
 
-        else if (child instanceof Observable) {
+        else if (child instanceof Observable)
+            appendObservableChild(parentNode, child, false);
 
-            let value = <any>child.value;
-            let textNode = document.createTextNode(value !== null && value !== undefined ? String(value) : "");
-
-            appendDispose(textNode, child.subscribe(n => { textNode.textContent = n !== null && n !== undefined ? String(n) : ""; }).dispose);
-
-            node.appendChild(textNode);
-        }
-
-        else if (typeof child === "function") {
-
-            let computedObservable = ComputedObservable.createComputed(child);
-            let value = <any>computedObservable.value;
-            let textNode = document.createTextNode(value !== null && value !== undefined ? String(value) : "");
-
-            appendDispose(textNode, computedObservable.subscribe(n => { textNode.textContent = n !== null && n !== undefined ? String(n) : ""; }).dispose);
-            node.appendChild(textNode);
-        }
-
+        else if (typeof child === "function")
+            appendObservableChild(parentNode, ComputedObservable.createComputed(child), true);
+        
         else if (child instanceof ObservableArray)
-            appendDispose(node, createFragmentForObservableArrayChild(node, child, parentElement));
+            appendDispose(parentNode, createFragmentForObservableArrayChild(parentNode, child, parentElement));
 
         else if (child instanceof Array)
             child.forEach(processChild);
 
-        else node.appendChild(document.createTextNode(child !== null && child !== undefined ? String(child) : ""));
+        else parentNode.appendChild(document.createTextNode(child !== null && child !== undefined ? String(child) : ""));
     }
 
     children.forEach(processChild);
+}
+
+function appendObservableChild(parentNode: Node, childObservable: Observable<any>, ownsObservable: boolean) {
+
+    let childValue = <any>childObservable.value;
+    let childNode: Node;
+
+    if (childValue instanceof HTMLElement ||
+        childValue instanceof SVGElement)
+
+        childNode = childValue;
+
+    else if (childValue instanceof Component)
+        childNode = childValue.node;
+
+    else childNode = document.createTextNode(childValue !== null && childValue !== undefined ? String(childValue) : "");
+
+    parentNode.appendChild(childNode);
+
+    let dispose: () => any, subscription = childObservable.subscribe(n => {
+
+        let newChildNode: Node;
+
+        if (n instanceof HTMLElement ||
+            n instanceof SVGElement)
+
+            newChildNode = n;
+
+        else if (n instanceof Component)
+            newChildNode = n.node;
+
+        else if (childNode instanceof Text) {
+
+            childNode.textContent = n !== null && n !== undefined ? String(n) : "";
+            return;
+        }
+
+        else newChildNode = document.createTextNode(n !== null && n !== undefined ? String(n) : "");
+
+        if (newChildNode !== childNode) {
+            
+            parentNode.replaceChild(newChildNode, childNode);
+
+            removeDispose(childNode, dispose);
+            appendDispose(childNode = newChildNode, dispose);
+        }
+    });
+
+    appendDispose(childNode, dispose = ownsObservable ? childObservable.dispose : subscription.dispose);
 }
 
 class VerticalListEaseOutDOMAnimator implements DOMAnimator {
@@ -310,6 +406,24 @@ export function appendDispose(node: Node, fn: () => any) {
     else node["__dispose"] = [fn];
 }
 
+export function removeDispose(node: Node, fn: () => any) {
+
+    let dispose: (() => any)[] = node["__dispose"];
+
+    if (dispose) {
+
+        let i = dispose.indexOf(fn);
+
+        if (i !== -1) {
+
+            if (dispose.length === 1)
+                delete node["__dispose"];
+
+            else dispose.splice(i, 1);
+        }
+    }
+}
+
 export function bindTextContent(node: Node, expression: any | Observable<any> | (() => any)) {
 
     if (expression instanceof Observable)
@@ -327,12 +441,6 @@ export function bindTextContent(node: Node, expression: any | Observable<any> | 
 }
 
 export function bindAttribute(element: Element, name: string, expression: any | Observable<any> | (() => any)) {
-
-    switch (name) {
-
-        case "pressed":
-            return bindPressed(element, expression);
-    }
 
     if (typeof expression === "string")
         element.setAttribute(name, expression);
@@ -429,45 +537,6 @@ export function bindClass(element: Element, name: string, expression: boolean | 
     else element.classList.remove(name);
 }
 
-export function bindPressed(element: Element, expression: boolean | Observable<boolean> | (() => boolean)) {
-
-    if (expression) {
-
-        if (expression === true)
-            element.setAttribute("aria-pressed", "true");
-
-        else if (expression instanceof Observable) {
-
-            appendDispose(element, expression.subscribeInvoke(n => {
-
-                if (n)
-                    element.setAttribute("aria-pressed", "true");
-
-                else element.removeAttribute("aria-pressed");
-
-            }).dispose);
-        }
-
-        else if (typeof expression === "function") {
-
-            let computedObservable = ComputedObservable.createComputed(expression);
-
-            computedObservable.subscribeInvoke(n => {
-
-                if (n)
-                    element.setAttribute("aria-pressed", "true");
-
-                else element.removeAttribute("aria-pressed");
-
-            });
-
-            appendDispose(element, computedObservable.dispose);
-        }
-    }
-
-    else element.removeAttribute("aria-pressed");
-}
-
 var htmlElementIds = 0;
 
 export function generateHTMLElementId() {
@@ -476,6 +545,9 @@ export function generateHTMLElementId() {
 }
 
 export interface IAttributes {
+
+    class?: string | Observable<string> | (() => string);
+    style?: CSSStyleDeclaration;
 
     onabort?: (ev: UIEvent) => any;
     onanimationcancel?: (ev: AnimationEvent) => any;

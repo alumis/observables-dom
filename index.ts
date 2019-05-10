@@ -1,6 +1,5 @@
 import { Observable, ComputedObservable, ObservableArray, DerivedObservableCollection } from "@alumis/observables";
-import { transitionAsync, DOMAnimator, elementIsVisible, easeIn, easeOut } from "@alumis/transitionasync";
-import { CancellationToken } from "@alumis/cancellationtoken";
+import { BlockAnimator } from "@alumis/transitionasync/src/BlockAnimator";
 
 export var globalAttrHandlers = new Map<string, (node: Node, attr, attrs: { [attr: string]: any }) => any>();
 
@@ -60,7 +59,6 @@ globalAttrHandlers.set("class", (element: HTMLElement, expression) => {
 });
 
 globalAttrHandlers.set("style", (element: HTMLElement, attr) => { Object.assign(element.style, attr); });
-globalAttrHandlers.set("pressed", (element: HTMLElement, attr) => { bindAttribute(element, "aria-pressed", attr) });
 
 export function createNode(element: string | (() => any), attrs: { [attr: string]: any }, ...children) {
 
@@ -210,115 +208,8 @@ function appendObservableChild(parentNode: Node, childObservable: Observable<any
     appendDispose(childNode, dispose = ownsObservable ? childObservable.dispose : subscription.dispose);
 }
 
-class VerticalListEaseOutDOMAnimator implements DOMAnimator {
-
-    async insertBeforeAsync(parentElement: HTMLElement, newChild: HTMLElement, referenceNode: Node, cancellationToken?: CancellationToken) {
-
-        newChild.style.opacity = "0";
-        newChild.style.position = "absolute";
-        newChild.style.width = "100%";
-
-        parentElement.insertBefore(newChild, referenceNode);
-
-        if (newChild.offsetParent !== parentElement)
-            parentElement.style.position = "relative";
-
-        let heightToBe = newChild.clientHeight;
-
-        if (heightToBe && elementIsVisible(newChild)) {
-
-            newChild.style.height = "0";
-            newChild.style.width = "";
-            newChild.style.position = "";
-
-            let height = 0;
-            let remaining = heightToBe - height;
-
-            if (remaining) {
-
-                let scrollBottom = document.body.scrollHeight - window.innerHeight - window.scrollY;
-
-                if (scrollBottom < scrollY) {
-
-                    await transitionAsync(150, t => {
-
-                        newChild.style.height = (height + remaining * easeIn(t)) + "px";
-
-                        scrollBy(0, document.body.scrollHeight - window.innerHeight - window.scrollY - scrollBottom);
-                    }, cancellationToken);
-                }
-
-                else await transitionAsync(150, t => { newChild.style.height = (height + remaining * easeIn(t)) + "px"; }, cancellationToken);
-            }
-
-            newChild.style.height = "";
-
-            let opacity = 0;
-
-            remaining = 1 - opacity;
-
-            if (remaining)
-                await transitionAsync(200, t => { newChild.style.opacity = String(opacity + remaining * easeOut(t)); }, cancellationToken);
-
-            newChild.style.opacity = "";
-        }
-
-        else {
-
-            newChild.style.opacity = "";
-            newChild.style.width = "";
-            newChild.style.position = "";
-        }
-    }
-
-    async removeAsync(element: HTMLElement, cancellationToken?: CancellationToken) {
-
-        if (elementIsVisible(element)) {
-
-            let opacity = parseFloat(getComputedStyle(element).opacity);
-
-            if (opacity)
-                await transitionAsync(200, t => { element.style.opacity = String(opacity - opacity * easeIn(t)); }, cancellationToken);
-
-            let height = element.clientHeight;
-
-            if (height)
-                await transitionAsync(150, t => { element.style.height = height - height * easeOut(t) + "px"; }, cancellationToken);
-
-            element.remove();
-
-            element.style.opacity = "";
-            element.style.height = "";
-        }
-
-        else element.remove();
-    }
-}
-
-function getScrollParent(element: HTMLElement, includeHidden?: boolean) {
-
-    let style = getComputedStyle(element);
-    let excludeStaticParent = style.position === "absolute";
-    let overflowRegex = includeHidden ? /(auto|scroll|hidden)/ : /(auto|scroll)/;
-
-    if (style.position === "fixed")
-        return document.scrollingElement || document.documentElement;
-
-    for (let parent = element.parentElement; parent; parent = parent.parentElement) {
-
-        style = getComputedStyle(parent);
-
-        if (excludeStaticParent && style.position === "static")
-            continue;
-
-        if (overflowRegex.test(style.overflow + style.overflowY + style.overflowX))
-            return parent;
-    }
-
-    return document.scrollingElement || document.documentElement;
-}
-
-export var verticalListEaseOutDOMAnimator = new VerticalListEaseOutDOMAnimator();
+export var blockAnimator = new BlockAnimator();
+export var listAnimator = blockAnimator;
 
 function createFragmentForObservableArrayChild(node: Node, child: ObservableArray<any>, parentElement: HTMLElement) {
 
@@ -340,7 +231,7 @@ function createFragmentForObservableArrayChild(node: Node, child: ObservableArra
                 if (move)
                     parentElement.insertBefore(element, referenceNode);
 
-                else verticalListEaseOutDOMAnimator.insertBeforeAsync(parentElement, element, referenceNode);
+                else listAnimator.insertBeforeAsync(parentElement, element, referenceNode);
 
                 referenceNode = element;
             }
@@ -357,7 +248,7 @@ function createFragmentForObservableArrayChild(node: Node, child: ObservableArra
 
                 else {
 
-                    verticalListEaseOutDOMAnimator.removeAsync(e);
+                    listAnimator.removeAsync(e);
                     disposeNode(e);
                 }
             }

@@ -219,7 +219,11 @@ function appendObservableChild(parentNode: Node, childObservable: Observable<any
 
                 let ct = cancellationToken = new CancellationToken();
 
-                animator.replaceAsync(newChildNode, childNode, ct).finally(() => {
+                animator.replaceAsync(newChildNode, childNode, ct, () => {
+
+                    childNode = newChildNode;
+
+                }).finally(() => {
 
                     if (cancellationToken === ct)
                         cancellationToken = null;
@@ -235,6 +239,7 @@ function appendObservableChild(parentNode: Node, childObservable: Observable<any
                 }
 
                 parentNode.replaceChild(newChildNode, childNode);
+                childNode = newChildNode;
             }
         }
 

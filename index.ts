@@ -1,5 +1,7 @@
 import { Observable, ComputedObservable, ObservableArray, DerivedObservableCollection } from "@alumis/observables";
 import { BlockAnimator } from "@alumis/transitionasync/src/BlockAnimator";
+import { IDOMAnimator } from "@alumis/transitionasync/src/IDOMAnimator";
+import { CancellationToken } from "@alumis/cancellationtoken";
 
 export var globalAttrHandlers = new Map<string, (node: Node, attr, attrs: { [attr: string]: any }) => any>();
 
@@ -59,6 +61,12 @@ globalAttrHandlers.set("class", (element: HTMLElement, expression) => {
 });
 
 globalAttrHandlers.set("style", (element: HTMLElement, attr) => { Object.assign(element.style, attr); });
+globalAttrHandlers.set("animator", (element: HTMLElement, animator: IDOMAnimator) => { element["__animator"] = animator; });
+
+export function getNodeAnimator(element: HTMLElement) {
+
+    return element["__animator"] as IDOMAnimator;
+}
 
 export function createNode(element: string | (() => any), attrs: { [attr: string]: any }, ...children) {
 
@@ -146,7 +154,7 @@ function appendChildren(parentNode: Node, children: any[], parentElement: HTMLEl
 
         else if (typeof child === "function")
             appendObservableChild(parentNode, ComputedObservable.createComputed(child), true);
-        
+
         else if (child instanceof ObservableArray)
             appendDispose(parentNode, createFragmentForObservableArrayChild(parentNode, child, parentElement));
 
@@ -172,9 +180,14 @@ function appendObservableChild(parentNode: Node, childObservable: Observable<any
     else if (childValue instanceof Component)
         childNode = childValue.node;
 
-    else childNode = document.createTextNode(childValue !== null && childValue !== undefined ? String(childValue) : "");
+    else if (childValue === null || childValue === undefined)
+        childNode = document.createElement("span");
+
+    else childNode = document.createTextNode(childValue);
 
     parentNode.appendChild(childNode);
+
+    let cancellationToken: CancellationToken, animator: IDOMAnimator;
 
     let dispose: () => any, subscription = childObservable.subscribe(n => {
 
@@ -188,20 +201,64 @@ function appendObservableChild(parentNode: Node, childObservable: Observable<any
         else if (n instanceof Component)
             newChildNode = n.node;
 
+        else if (n === null || n === undefined)
+            newChildNode = document.createElement("span");
+
         else if (childNode instanceof Text) {
 
             childNode.textContent = n !== null && n !== undefined ? String(n) : "";
             return;
         }
 
-        else newChildNode = document.createTextNode(n !== null && n !== undefined ? String(n) : "");
+        else newChildNode = document.createTextNode(n);
 
         if (newChildNode !== childNode) {
-            
-            parentNode.replaceChild(newChildNode, childNode);
 
-            removeDispose(childNode, dispose);
-            appendDispose(childNode = newChildNode, dispose);
+            if (newChildNode instanceof HTMLElement && childNode instanceof HTMLElement && (animator = getNodeAnimator(childNode) || getNodeAnimator(newChildNode))) {
+
+                if (cancellationToken)
+                    cancellationToken.cancel();
+
+                let ct = cancellationToken = new CancellationToken();
+
+                animator.replaceAsync(newChildNode, childNode, ct, () => {
+
+                    removeDispose(childNode, dispose);
+                    appendDispose(childNode = newChildNode, dispose);
+
+                }).finally(() => {
+
+                    if (cancellationToken === ct)
+                        cancellationToken = null;
+                });
+            }
+
+            else {
+
+                if (cancellationToken) {
+
+                    cancellationToken.cancel();
+                    cancellationToken = null;
+                }
+
+                parentNode.replaceChild(newChildNode, childNode);
+
+                removeDispose(childNode, dispose);
+                appendDispose(childNode = newChildNode, dispose);
+            }
+        }
+
+        else if (cancellationToken) {
+
+            cancellationToken.cancel();
+
+            let ct = cancellationToken = new CancellationToken();
+
+            animator.resumeAsync(childNode as HTMLElement, ct).finally(() => {
+
+                if (cancellationToken === ct)
+                    cancellationToken = null;
+            });
         }
     });
 

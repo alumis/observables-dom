@@ -187,9 +187,7 @@ function appendObservableChild(parentNode: Node, childObservable: Observable<any
 
     parentNode.appendChild(childNode);
 
-    let cancellationToken: CancellationToken, animator: IDOMAnimator;
-
-    let dispose: () => any, subscription = childObservable.subscribe(n => {
+    let cancellationToken: CancellationToken, animator: IDOMAnimator, subscription = childObservable.subscribe(n => {
 
         let newChildNode: Node;
 
@@ -221,12 +219,7 @@ function appendObservableChild(parentNode: Node, childObservable: Observable<any
 
                 let ct = cancellationToken = new CancellationToken();
 
-                animator.replaceAsync(newChildNode, childNode, ct, () => {
-
-                    removeDispose(childNode, dispose);
-                    appendDispose(childNode = newChildNode, dispose);
-
-                }).finally(() => {
+                animator.replaceAsync(newChildNode, childNode, ct).finally(() => {
 
                     if (cancellationToken === ct)
                         cancellationToken = null;
@@ -242,9 +235,6 @@ function appendObservableChild(parentNode: Node, childObservable: Observable<any
                 }
 
                 parentNode.replaceChild(newChildNode, childNode);
-
-                removeDispose(childNode, dispose);
-                appendDispose(childNode = newChildNode, dispose);
             }
         }
 
@@ -262,7 +252,7 @@ function appendObservableChild(parentNode: Node, childObservable: Observable<any
         }
     });
 
-    appendDispose(childNode, dispose = ownsObservable ? childObservable.dispose : subscription.dispose);
+    appendDispose(parentNode, ownsObservable ? childObservable.dispose : subscription.dispose);
 }
 
 export var blockAnimator = new BlockAnimator();

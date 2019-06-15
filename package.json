@@ -13,12 +13,12 @@
   },
   "devDependencies": {
     "@alumis/observables": "^1.0.52",
-    "@alumis/transitionasync": "^1.0.7",
+    "@alumis/transitionasync": "^1.0.8",
     "@alumis/utils": "^1.0.15"
   },
   "peerDependencies": {
     "@alumis/observables": "^1.0.52",
-    "@alumis/transitionasync": "^1.0.7",
+    "@alumis/transitionasync": "^1.0.8",
     "@alumis/utils": "^1.0.15"
   },
   "sideEffects": true

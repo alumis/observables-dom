@@ -1,7 +1,7 @@
 import { Observable, ComputedObservable, ObservableArray, DerivedObservableCollection } from "@alumis/observables";
 import { BlockAnimator } from "@alumis/transitionasync/src/BlockAnimator";
 import { IDOMAnimator } from "@alumis/transitionasync/src/IDOMAnimator";
-import { CancellationToken } from "@alumis/cancellationtoken";
+import { CancellationToken } from "@alumis/utils/src/CancellationToken";
 
 export var globalAttrHandlers = new Map<string, (node: Node, attr, attrs: { [attr: string]: any }) => any>();
 

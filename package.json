@@ -12,18 +12,14 @@
     "url": "https://github.com/alumis/observables-dom/issues"
   },
   "devDependencies": {
-    "@alumis/cancellationtoken": "^1.0.4",
-    "@alumis/observables": "^1.0.51",
-    "@alumis/semaphore": "^1.0.1",
-    "@alumis/transitionasync": "^1.0.6",
-    "@alumis/utils": "^1.0.6"
+    "@alumis/observables": "^1.0.52",
+    "@alumis/transitionasync": "^1.0.7",
+    "@alumis/utils": "^1.0.15"
   },
   "peerDependencies": {
-    "@alumis/cancellationtoken": "^1.0.4",
-    "@alumis/observables": "^1.0.47",
-    "@alumis/semaphore": "^1.0.1",
-    "@alumis/transitionasync": "^1.0.3",
-    "@alumis/utils": "^1.0.6"
+    "@alumis/observables": "^1.0.52",
+    "@alumis/transitionasync": "^1.0.7",
+    "@alumis/utils": "^1.0.15"
   },
   "sideEffects": true
 }
